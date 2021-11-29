@@ -83,17 +83,44 @@ BlocklyDialogs.showDialog = function(content, origin, animate, modal, style,
         Blockly.bindEvent_(header, 'mousedown', null,
                            BlocklyDialogs.dialogMouseDown_);
   }
+  // Inject 'Ok' and 'Cancel' from Blockly's messages.
+  var okButtons = content.getElementsByClassName('dialogOk');
+  for (var i = 0; i < okButtons.length; i++) {
+    okButtons[i].textContent = Blockly.Msg['DIALOG_OK'];
+  }
+  var cancelButtons = content.getElementsByClassName('dialogCancel');
+  for (var i = 0; i < cancelButtons.length; i++) {
+    cancelButtons[i].textContent = Blockly.Msg['DIALOG_CANCEL'];
+  }
   dialog.appendChild(content);
   content.className = content.className.replace('dialogHiddenContent', '');
 
   function endResult() {
     // Check that the dialog wasn't closed during opening.
-    if (BlocklyDialogs.isDialogVisible_) {
-      dialog.style.visibility = 'visible';
-      dialog.style.zIndex = 10;
-      border.style.visibility = 'hidden';
+    if (!BlocklyDialogs.isDialogVisible_) {
+      return;
+    }
+    dialog.style.visibility = 'visible';
+    dialog.style.zIndex = 10;
+    border.style.visibility = 'hidden';
+
+    // Focus on the dialog's most important button.
+    var buttons = content.getElementsByClassName('primary');
+    if (!buttons.length) {
+      buttons = content.getElementsByClassName('secondary');
+      if (!buttons.length) {
+        buttons = content.getElementsByTagName('button');
+      }
+    }
+    if (buttons.length) {
+      buttons[0].focus();
     }
   }
+  // The origin (if it exists) might be a button we should lose focus on.
+  try {
+    origin.blur();
+  } catch(e) {}
+
   if (animate && origin) {
     BlocklyDialogs.matchBorder_(origin, false, 0.2);
     BlocklyDialogs.matchBorder_(dialog, true, 0.8);
@@ -408,15 +435,13 @@ BlocklyDialogs.congratulations = function() {
 };
 
 /**
- * If the user preses enter, escape, or space, hide the dialog.
+ * If the user presses enter, escape, or space, hide the dialog.
  * @param {!Event} e Keyboard event.
  * @private
  */
 BlocklyDialogs.dialogKeyDown_ = function(e) {
   if (BlocklyDialogs.isDialogVisible_) {
-    if (e.keyCode == 13 ||
-        e.keyCode == 27 ||
-        e.keyCode == 32) {
+    if (e.keyCode == 13 || e.keyCode == 27 || e.keyCode == 32) {
       BlocklyDialogs.hideDialog(true);
       e.stopPropagation();
       e.preventDefault();
@@ -441,20 +466,14 @@ BlocklyDialogs.stopDialogKeyDown = function() {
 };
 
 /**
- * If the user preses enter, escape, or space, hide the dialog.
+ * If the user presses enter, escape, or space, hide the dialog.
  * Enter and space move to the next level, escape does not.
  * @param {!Event} e Keyboard event.
  */
 BlocklyDialogs.congratulationsKeyDown = function(e) {
-  if (e.keyCode == 13 ||
-      e.keyCode == 27 ||
-      e.keyCode == 32) {
-    BlocklyDialogs.hideDialog(true);
-    e.stopPropagation();
-    e.preventDefault();
-    if (e.keyCode != 27) {
-      BlocklyInterface.nextLevel();
-    }
+  BlocklyDialogs.dialogKeyDown_(e);
+  if (e.keyCode == 13 || e.keyCode == 32) {
+    BlocklyInterface.nextLevel();
   }
 };
 
@@ -464,15 +483,9 @@ BlocklyDialogs.congratulationsKeyDown = function(e) {
  * @param {!Event} e Keyboard event.
  */
 BlocklyDialogs.abortKeyDown = function(e) {
-  if (e.keyCode == 13 ||
-      e.keyCode == 27 ||
-      e.keyCode == 32) {
-    BlocklyDialogs.hideDialog(true);
-    e.stopPropagation();
-    e.preventDefault();
-    if (e.keyCode != 27) {
-      BlocklyInterface.indexPage();
-    }
+  BlocklyDialogs.dialogKeyDown_(e);
+  if (e.keyCode == 13 || e.keyCode == 32) {
+    BlocklyInterface.indexPage();
   }
 };
 

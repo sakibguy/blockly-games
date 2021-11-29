@@ -210,6 +210,25 @@ Music.importSounds = function() {
  * Register the sounds.
  */
 Music.registerSounds = function() {
+  // The packaged version of _handlePreloadComplete occasionally throws errors:
+  //   TypeError: Cannot read properties of null (reading '1')
+  // A fix has been created, but isn't yet compiled into the package:
+  //   https://github.com/CreateJS/SoundJS/issues/269
+  // Monkey-patch the fix.
+  createjs['AbstractPlugin'].prototype['_handlePreloadComplete'] = function(e) {
+    var src = e.target.getItem().src;
+    var result = e.result;
+    var instances = this['_soundInstances'][src];
+    this['_audioSources'][src] = result;
+
+    if (instances != null && instances.length > 0) {
+      for (var i=0, l=instances.length; i<l; i++) {
+        instances[i]['playbackResource'] = result;
+      }
+    }
+    this['_soundInstances'][src] = null;
+  };
+
   var assetsPath = 'third-party/soundfonts/';
   var instruments = ['piano', 'trumpet', 'violin', 'drum',
                      'flute', 'banjo', 'guitar', 'choir'];
@@ -454,7 +473,7 @@ Music.disableExtraStarts = function(e) {
       for (var i = 0, id; (id = e.ids[i]); i++) {
         for (var j = 0, startBlock; (startBlock = startBlocks[j]); j++) {
           if (startBlock.id == id) {
-            startBlock.setDisabled(true);
+            startBlock.setEnabled(false);
           }
         }
       }
@@ -481,7 +500,7 @@ Music.disableExtraStarts = function(e) {
            startBlocksDisabled.length) {
       // Enable a disabled start block.
       var block = startBlocksDisabled.shift();
-      block.setDisabled(false);
+      block.setEnabled(true);
       startBlocksEnabled.push(block);
     }
     if (maxStarts > startBlocksEnabled.length) {

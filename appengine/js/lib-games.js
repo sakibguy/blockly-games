@@ -21,6 +21,7 @@ goog.require('Blockly.utils.math');
 BlocklyGames.LANGUAGE_NAME = {
 //  'ace': 'بهسا اچيه',
 //  'af': 'Afrikaans',
+  'am': 'አማርኛ',
   'ar': 'العربية',
 //  'az': 'Azərbaycanca',
   'be': 'беларускі',
@@ -28,7 +29,7 @@ BlocklyGames.LANGUAGE_NAME = {
   'bg': 'български език',
   'bn': 'বাংলা',
   'br': 'Brezhoneg',
-//  'ca': 'Català',
+  'ca': 'Català',
 //  'cdo': '閩東語',
   'cs': 'Česky',
   'da': 'Dansk',
@@ -48,6 +49,7 @@ BlocklyGames.LANGUAGE_NAME = {
 //  'hak': '客家話',
   'he': 'עברית',
   'hi': 'हिन्दी',
+  'hr': 'Hrvatski',
 //  'hrx': 'Hunsrik',
   'hu': 'Magyar',
   'hy': 'հայերէն',
@@ -60,6 +62,7 @@ BlocklyGames.LANGUAGE_NAME = {
 //  'ka': 'ქართული',
   'kab': 'Taqbaylit',
 //  'km': 'ភាសាខ្មែរ',
+  'kn': 'ಕನ್ನಡ',
   'ko': '한국어',
 //  'ksh': 'Ripoarėsch',
 //  'ky': 'Кыргызча',
@@ -92,6 +95,7 @@ BlocklyGames.LANGUAGE_NAME = {
   'sl': 'Slovenščina',
   'sq': 'Shqip',
   'sr': 'Српски',
+  'sr-latn': 'Srpski',
   'sv': 'Svenska',
 //  'sw': 'Kishwahili',
 //  'ta': 'தமிழ்',
@@ -131,6 +135,37 @@ BlocklyGames.LANGUAGES = window['BlocklyGamesLanguages'];
 BlocklyGames.IS_HTML = /\.html$/.test(window.location.pathname);
 
 /**
+ * Report client-side errors back to the server.
+ * @param {!ErrorEvent} event Error event.
+ */
+BlocklyGames.errorReporter = function(event) {
+  try {
+    //if (Math.random() > 0.5) return;
+    // 3rd party script errors (likely plugins) have no useful info.
+    if (event.lineno == 0 && event.colno == 0) return;
+    // Rate-limit the reports to once every 10 seconds.
+    var now = Date.now();
+    if (BlocklyGames.errorReporter.lastHit_ + 10 * 1000 > now) return;
+    BlocklyGames.errorReporter.lastHit_ = now;
+    var req = new XMLHttpRequest();
+    var params = "error=" + encodeURIComponent(event.message + ' ' +
+        event.filename + ' ' + event.lineno + ':' + event.colno) +
+        '&amp;url=' + encodeURIComponent(window.location);
+    req.open("POST", "/errorReporter");
+    req.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+    req.send(params);
+    console.log('Error reported.');
+  } catch(e) {
+    // Error in error reporter.  Do NOT recursively call the error reporter.
+    console.log(event.error);
+  }
+};
+BlocklyGames.errorReporter.lastHit_ = 0;
+if (!BlocklyGames.IS_HTML) {
+  window.addEventListener('error', BlocklyGames.errorReporter);
+}
+
+/**
  * Extracts a parameter from the URL.
  * If the parameter is absent default_value is returned.
  * @param {string} name The name of the parameter.
@@ -144,7 +179,7 @@ BlocklyGames.getStringParamFromUrl = function(name, defaultValue) {
 };
 
 /**
- * Extracts a numeric parameter from the URL.
+ * Extracts an integer parameter from the URL.
  * If the parameter is absent or less than min_value, min_value is
  * returned.  If it is greater than max_value, max_value is returned.
  * @param {string} name The name of the parameter.
@@ -152,8 +187,8 @@ BlocklyGames.getStringParamFromUrl = function(name, defaultValue) {
  * @param {number} maxValue The maximum legal value.
  * @return {number} A number in the range [min_value, max_value].
  */
-BlocklyGames.getNumberParamFromUrl = function(name, minValue, maxValue) {
-  var val = Number(BlocklyGames.getStringParamFromUrl(name, 'NaN'));
+BlocklyGames.getIntegerParamFromUrl = function(name, minValue, maxValue) {
+  var val = Math.floor(Number(BlocklyGames.getStringParamFromUrl(name, 'NaN')));
   return isNaN(val) ? minValue :
       Blockly.utils.math.clamp(minValue, val, maxValue);
 };
@@ -181,7 +216,7 @@ BlocklyGames.MAX_LEVEL = 10;
  * @type {number}
  */
 BlocklyGames.LEVEL =
-    BlocklyGames.getNumberParamFromUrl('level', 1, BlocklyGames.MAX_LEVEL);
+    BlocklyGames.getIntegerParamFromUrl('level', 1, BlocklyGames.MAX_LEVEL);
 
 /**
  * Common startup tasks for all apps.
@@ -328,7 +363,12 @@ BlocklyGames.bindClick = function(el, func) {
     el = document.getElementById(el);
   }
   el.addEventListener('click', func, true);
-  el.addEventListener('touchend', func, true);
+  function touchFunc(e) {
+    // Prevent code from being executed twice on touchscreens.
+    e.preventDefault();
+    func(e);
+  }
+  el.addEventListener('touchend', touchFunc, true);
 };
 
 /**
